@@ -1,6 +1,11 @@
 # BlueEyes
 
-这是一个 Lean 4 + Mathlib 小项目，用来形式化“红眼睛 / 绿眼睛”经典逻辑题。项目包含一层
+[![Online Reading](https://img.shields.io/badge/🌐-Online%20Reading-blue?style=for-the-badge&logo=github)](https://colorlessboy.github.io/blueeyes/)
+[![Lean](https://img.shields.io/badge/Lean-4.28.0-purple?style=for-the-badge&logo=lean)](https://leanprover.github.io/)
+[![Mathlib](https://img.shields.io/badge/Mathlib-v4.28.0-red?style=for-the-badge&logo=github)](https://github.com/leanprover-community/mathlib4)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+
+这是一个 Lean 4 + Mathlib 小项目，用来形式化”红眼睛 / 绿眼睛”经典逻辑题。项目包含一层
 Kripke-style 认识逻辑模型、有限参与者上的具体计数模型，并在其上给出经典解法使用的计数归纳证明。
 
 ## 问题背景
