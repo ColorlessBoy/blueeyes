@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BlueEyes | Lean 4 形式化文档</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav" aria-label="文档导航">
+        <a class="brand" href="#top" aria-label="BlueEyes 首页">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>BlueEyes</span>
+        </a>
+        <div class="nav-links">
+          <a href="#story">问题</a>
+          <a href="#intuition">直觉</a>
+          <a href="#semantics">语义</a>
+          <a href="#model">模型</a>
+          <a href="#proof-roadmap">证明路线</a>
+          <a href="#lean">Lean 细节</a>
+          <a href="#project">项目</a>
+          <a href="#example">示例</a>
+          <a href="#boundary">边界</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Public Announcement Logic in Lean 4</p>
+          <h1 id="hero-title">红眼睛 / 绿眼睛逻辑题的形式化</h1>
+          <p class="hero-lead">
+            这个文档展示项目如何在 Lean 4 + Mathlib 中构建世界、知识、公开公告、无人离开的公共更新，
+            以及有限世界上的红眼人数计数，再证明经典解法中的计数归纳。
+          </p>
+          <div class="hero-actions" aria-label="主要入口">
+            <a class="button primary" href="#lean">查看 Lean 定理</a>
+            <a class="button secondary" href="#playground">交互推演</a>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="岛民眼睛颜色示意">
+          <div class="moon" aria-hidden="true"></div>
+          <div class="oracle">
+            <span>至少有一人红眼</span>
+          </div>
+          <div class="islanders" aria-hidden="true">
+            <span class="person red p1"><i></i></span>
+            <span class="person green p2"><i></i></span>
+            <span class="person red p3"><i></i></span>
+            <span class="person green p4"><i></i></span>
+            <span class="person red p5"><i></i></span>
+          </div>
+          <div class="waterline" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <section id="story" class="section story-section" aria-labelledby="story-title">
+        <div class="section-heading">
+          <p class="eyebrow">The Puzzle</p>
+          <h2 id="story-title">问题的逻辑骨架</h2>
+        </div>
+        <div class="story-grid">
+          <article class="story-step">
+            <span class="step-number">1</span>
+            <h3>观察限制</h3>
+            <p>每个人能看见其他人的眼睛颜色，但看不见自己的颜色。</p>
+          </article>
+          <article class="story-step">
+            <span class="step-number">2</span>
+            <h3>公开公告</h3>
+            <p>公告“至少有一个人是红眼睛”，把零红眼的世界一次性排除。</p>
+          </article>
+          <article class="story-step">
+            <span class="step-number">3</span>
+            <h3>无人离开</h3>
+            <p>每个安静夜晚都会成为新的公共信息，继续排除更小的红眼人数。</p>
+          </article>
+          <article class="story-step">
+            <span class="step-number">4</span>
+            <h3>归纳结论</h3>
+            <p>若实际有 <code>r</code> 个红眼者，他们会在第 <code>r</code> 晚离开。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="intuition" class="section intuition-section" aria-labelledby="intuition-title">
+        <div class="section-heading">
+          <p class="eyebrow">Reasoning</p>
+          <h2 id="intuition-title">公告为什么会改变局面</h2>
+        </div>
+
+        <div class="explain-grid">
+          <article class="explain-card">
+            <h3>没有公告之前</h3>
+            <p>
+              每个人都知道其他人的颜色，但不知道自己的颜色。如果某人看到
+              <code>seen</code> 个红眼者，他面对的候选世界只有两个：总数是
+              <code>seen</code>，或者总数是 <code>seen + 1</code>。
+            </p>
+          </article>
+          <article class="explain-card">
+            <h3>公告的作用</h3>
+            <p>
+              公告“至少有一个红眼者”不会告诉大家谁是红眼者，但它把
+              <code>totalRed = 0</code> 的世界变成公共不可能。这是单红眼情形能够启动的原因。
+            </p>
+          </article>
+          <article class="explain-card">
+            <h3>安静夜晚的作用</h3>
+            <p>
+              如果第一晚没人离开，就说明没有人能在公告后立即推出自己是红眼者，于是
+              <code>totalRed = 1</code> 也被排除。之后每个安静夜晚都把下一个较小总数排除。
+            </p>
+          </article>
+        </div>
+
+        <div class="night-table" aria-label="红眼人数和离开夜晚对应表">
+          <div class="night-row header">
+            <span>实际红眼人数</span>
+            <span>每个红眼者看到</span>
+            <span>被排除前缀</span>
+            <span>离开时间</span>
+          </div>
+          <div class="night-row">
+            <span><code>1</code></span>
+            <span><code>0</code></span>
+            <span><code>0</code> 已由公告排除</span>
+            <span>第 1 晚</span>
+          </div>
+          <div class="night-row">
+            <span><code>2</code></span>
+            <span><code>1</code></span>
+            <span><code>0, 1</code></span>
+            <span>第 2 晚</span>
+          </div>
+          <div class="night-row">
+            <span><code>r</code></span>
+            <span><code>r - 1</code></span>
+            <span><code>0, 1, ..., r - 1</code></span>
+            <span>第 <code>r</code> 晚</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="playground" class="section playground" aria-labelledby="playground-title">
+        <div class="section-heading compact">
+          <p class="eyebrow">Interactive Model</p>
+          <h2 id="playground-title">用滑块查看可能世界如何被排除</h2>
+        </div>
+
+        <div class="playground-layout">
+          <div class="control-panel">
+            <label for="red-count">实际红眼人数 <strong id="red-count-value">4</strong></label>
+            <input id="red-count" type="range" min="1" max="8" value="4" />
+
+            <label for="quiet-nights">已经安静的夜晚 <strong id="quiet-nights-value">3</strong></label>
+            <input id="quiet-nights" type="range" min="0" max="7" value="3" />
+
+            <div class="status" id="model-status" aria-live="polite"></div>
+          </div>
+
+          <div class="world-panel">
+            <div class="panel-title-row">
+              <h3>可能的总红眼人数</h3>
+              <span id="rule-chip">k &lt; totalRed</span>
+            </div>
+            <div class="world-track" id="world-track" aria-label="可能世界排除图"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="semantics" class="section semantics-section" aria-labelledby="semantics-title">
+        <div class="section-heading">
+          <p class="eyebrow">Epistemic Semantics</p>
+          <h2 id="semantics-title">认识逻辑层如何表达故事</h2>
+        </div>
+
+        <div class="semantic-flow">
+          <article class="flow-item">
+            <span class="flow-index">A</span>
+            <h3>世界</h3>
+            <p>
+              一个世界是完整颜色赋值：每个参与者都有红或绿。Lean 中用
+              <code>World Agent</code> 表示，其中 <code>Agent</code> 可以是任意参与者类型。
+            </p>
+          </article>
+          <article class="flow-item">
+            <span class="flow-index">B</span>
+            <h3>不可区分</h3>
+            <p>
+              对参与者 <code>i</code> 来说，两个世界不可区分，当且仅当除 <code>i</code>
+              之外所有人的颜色一致。这正是“看不到自己”的形式化。
+            </p>
+          </article>
+          <article class="flow-item">
+            <span class="flow-index">C</span>
+            <h3>知识</h3>
+            <p>
+              <code>Knows M i w P</code> 表示在公共模型 <code>M</code> 中，所有
+              <code>i</code> 无法从 <code>w</code> 区分的可能世界都满足 <code>P</code>。
+            </p>
+          </article>
+          <article class="flow-item">
+            <span class="flow-index">D</span>
+            <h3>公共更新</h3>
+            <p>
+              公告和无人离开都被建模成对可能世界集合的收缩。每一次收缩都会成为下一轮知识判断的背景。
+            </p>
+          </article>
+        </div>
+
+        <div class="formula-strip">
+          <div>
+            <strong>公告后</strong>
+            <code>afterGuruAnnouncement w ↔ AtLeastOneRed w</code>
+          </div>
+          <div>
+            <strong>一晚安静后</strong>
+            <code>afterOneQuietNight M w ↔ M w ∧ ∀ i, ¬ WouldLeave M i w</code>
+          </div>
+          <div>
+            <strong>连续安静夜晚</strong>
+            <code>afterQuietNights (n + 1) = afterOneQuietNight (afterQuietNights n)</code>
+          </div>
+        </div>
+
+        <div class="proof-note">
+          <h3>关键区分：人人知道 ≠ 公共知识</h3>
+          <p>
+            两个人都红时，每个人都能看见另一个红眼者，所以每个人都知道“至少有一个红眼者”。
+            但这仍不等于公共知识。岛民 <code>0</code> 仍认为自己可能是绿眼；在那个可能世界里，
+            岛民 <code>1</code> 又会认为全绿世界可能。因此二阶互知已经断掉。
+          </p>
+          <pre><code>theorem allRedTwo_everyoneKnows_atLeastOneRed :
+    EveryoneKnows initialModel allRedTwo AtLeastOneRed
+
+theorem allRedTwo_not_commonKnowledge_atLeastOneRed :
+    ¬ CommonKnowledge initialModel AtLeastOneRed allRedTwo
+
+theorem allRedTwo_not_commonKnowledge_everyoneKnows_atLeastOneRed :
+    ¬ CommonKnowledge initialModel
+      (fun w => EveryoneKnows initialModel w AtLeastOneRed)
+      allRedTwo</code></pre>
+        </div>
+
+        <div class="proof-note">
+          <h3>五人全红版本</h3>
+          <p>
+            五个人全是红眼时也是一样：每个人都知道至少有一个红眼者，但这件事仍然不是公共知识。
+            Lean 中的证明沿着下面这条不可区分链走到全绿世界：
+          </p>
+          <pre><code>RRRRR ~ GRRRR ~ GGRRR ~ GGGRR ~ GGGGR ~ GGGGG
+
+theorem allRedFive_everyoneKnows_atLeastOneRed :
+    EveryoneKnows initialModel allRedFive AtLeastOneRed
+
+theorem allRedFive_not_commonKnowledge_atLeastOneRed :
+    ¬ CommonKnowledge initialModel AtLeastOneRed allRedFive
+
+theorem allRedFive_not_commonKnowledge_everyoneKnows_atLeastOneRed :
+    ¬ CommonKnowledge initialModel
+      (fun w => EveryoneKnows initialModel w AtLeastOneRed)
+      allRedFive</code></pre>
+        </div>
+
+        <div class="deep-dive">
+          <article>
+            <h3>公共知识固定点</h3>
+            <p>
+              文件中将公共知识定义为所有有限层级的互知：
+              <code>P</code>、人人知道 <code>P</code>、人人知道人人知道 <code>P</code>，依此类推。
+              定理 <code>commonKnowledge_unfold</code> 给出固定点展开。
+            </p>
+            <pre><code>def CommonKnowledge (M : Model Agent) (P : Propn Agent) : Propn Agent :=
+  fun w => ∀ n, IteratedEveryoneKnows M P n w
+
+theorem commonKnowledge_unfold :
+    CommonKnowledge M P w ↔
+      P w ∧ EveryoneKnows M w (CommonKnowledge M P)</code></pre>
+          </article>
+          <article>
+            <h3>离开报告和状态转移</h3>
+            <p>
+              <code>NightState</code> 同时记录当前公共模型和仍在场的人。夜晚结束时，观察到的离开名单也会成为公共信息，
+              因此模型会保留那些预测出同一离开名单的世界。
+            </p>
+            <pre><code>structure NightState (Agent : Type u) where
+  model : Model Agent
+  present : Agent → Prop
+
+def nextNightState
+    (S : NightState Agent) (actual : World Agent) :
+    NightState Agent</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="model" class="section model-section" aria-labelledby="model-title">
+        <div class="section-heading">
+          <p class="eyebrow">Formal Model</p>
+          <h2 id="model-title">从故事到 Lean 命题</h2>
+        </div>
+        <div class="two-column">
+          <div>
+            <h3>世界与观察</h3>
+            <p>
+              一个世界给每个参与者分配眼睛颜色。两个世界对参与者 <code>i</code>
+              不可区分，意味着除 <code>i</code> 自己之外，所有人的颜色都相同。
+            </p>
+          </div>
+          <pre><code>structure World (Agent : Type u) where
+  color : Agent → EyeColor
+
+def indistinguishable
+    (i : Agent) (w v : World Agent) : Prop :=
+  ∀ j, j ≠ i → v.color j = w.color j</code></pre>
+
+          <div>
+            <h3>知识与公开更新</h3>
+            <p>
+              <code>Knows</code> 是标准 Kripke 风格定义：所有仍可能且不可区分的世界都满足
+              <code>P</code>。公开公告则把模型限制到满足公告命题的世界。
+            </p>
+          </div>
+          <pre><code>def Knows (M : Model Agent)
+    (i : Agent) (w : World Agent) (P : Propn Agent) : Prop :=
+  ∀ v, M v → indistinguishable i w v → P v
+
+def publicAnnouncement
+    (M : Model Agent) (A : Propn Agent) : Model Agent :=
+  fun w => M w ∧ A w</code></pre>
+
+          <div>
+            <h3>无人离开的夜晚</h3>
+            <p>
+              若没有人知道自己是红眼者，就没有人离开。这个事实公开后，模型会再次收缩。
+            </p>
+          </div>
+          <pre><code>def QuietNight (M : Model Agent) : Propn Agent :=
+  fun w => ∀ i, ¬ WouldLeave M i w
+
+def afterOneQuietNight (M : Model Agent) : Model Agent :=
+  publicAnnouncement M (QuietNight M)</code></pre>
+
+          <div>
+            <h3>观察相容性</h3>
+            <p>
+              某人看到 <code>seen</code> 个红眼者时，总红眼人数只有两种可能：
+              自己不是红眼者，所以总数是 <code>seen</code>；或者自己是红眼者，所以总数是
+              <code>seen + 1</code>。
+            </p>
+          </div>
+          <pre><code>def compatibleWithObservation
+    (seen totalRed : Nat) : Prop :=
+  totalRed = seen ∨ totalRed = seen + 1</code></pre>
+
+          <div>
+            <h3>安静夜晚后的可能世界</h3>
+            <p>
+              公告排除 <code>totalRed = 0</code>。连续 <code>quietNights</code>
+              晚无人离开后，还会排除所有 <code>totalRed ≤ quietNights</code> 的世界。
+            </p>
+          </div>
+          <pre><code>def possibleAfterQuietNights
+    (quietNights seen totalRed : Nat) : Prop :=
+  compatibleWithObservation seen totalRed ∧
+    0 &lt; totalRed ∧ quietNights &lt; totalRed</code></pre>
+
+          <div>
+            <h3>有限世界中的真实计数</h3>
+            <p>
+              Mathlib 的 <code>Fintype</code> 和 <code>Finset</code> 用来表达有限参与者集合。
+              <code>totalRed</code> 是真实红眼总数，<code>seenRed</code> 是从红眼集合中移除自己后的数量。
+            </p>
+          </div>
+          <pre><code>def redAgents (w : World Agent) : Finset Agent :=
+  Finset.univ.filter fun i => w.color i = EyeColor.red
+
+def totalRed (w : World Agent) : Nat :=
+  (redAgents w).card
+
+def seenRed (i : Agent) (w : World Agent) : Nat :=
+  ((redAgents w).erase i).card</code></pre>
+        </div>
+      </section>
+
+      <section id="proof-roadmap" class="section roadmap-section" aria-labelledby="roadmap-title">
+        <div class="section-heading">
+          <p class="eyebrow">Proof Roadmap</p>
+          <h2 id="roadmap-title">从 Kripke 语义到计数归纳</h2>
+        </div>
+
+        <div class="roadmap">
+          <div class="roadmap-step">
+            <span>01</span>
+            <h3>先固定观察者</h3>
+            <p>
+              对任意参与者 <code>i</code> 和世界 <code>w</code>，定义 <code>seenRed i w</code>
+              与 <code>totalRed w</code>。
+            </p>
+          </div>
+          <div class="roadmap-step">
+            <span>02</span>
+            <h3>证明观察只留下两个总数</h3>
+            <p>
+              <code>compatibleWithConcreteObservation</code> 证明真实总数只能等于所见数或所见数加一。
+            </p>
+          </div>
+          <div class="roadmap-step">
+            <span>03</span>
+            <h3>把安静夜晚变成下界</h3>
+            <p>
+              <code>afterQuietNights_count_lower_bound</code> 直接从 Kripke 更新推出
+              <code>quietNights &lt; totalRed</code>。
+            </p>
+          </div>
+          <div class="roadmap-step">
+            <span>04</span>
+            <h3>排除“自己不是红眼者”</h3>
+            <p>
+              红眼者看到 <code>n</code> 个红眼者，经过 <code>n</code> 个安静夜晚后，
+              <code>totalRed = n</code> 已不可能，只剩 <code>n + 1</code>。
+            </p>
+          </div>
+        </div>
+
+        <div class="proof-note">
+          <h3>关键归纳的证明思路</h3>
+          <p>
+            假设第 <code>n + 1</code> 次安静更新后还有一个世界 <code>w</code>，但
+            <code>totalRed w ≤ n + 1</code>。归纳假设已经给出 <code>n &lt; totalRed w</code>，
+            因此只能是 <code>totalRed w = n + 1</code>。取一个红眼者 <code>i</code>。
+            如果某个与 <code>w</code> 对 <code>i</code> 不可区分的剩余世界把 <code>i</code>
+            设为绿眼，那么该世界的总红眼数就是 <code>n</code>，违反归纳假设。
+            所以 <code>i</code> 会知道自己是红眼者并离开，和“安静夜晚”矛盾。
+          </p>
+          <pre><code>theorem afterQuietNights_count_lower_bound :
+    ∀ n {w : World Agent},
+      afterQuietNights n w → n &lt; totalRed w
+
+theorem possibleAfterQuietNights_of_afterQuietNights
+    (hw : afterQuietNights n w) :
+    possibleAfterQuietNights n (seenRed i w) (totalRed w)</code></pre>
+        </div>
+      </section>
+
+      <section id="lean" class="section lean-section" aria-labelledby="lean-title">
+        <div class="section-heading">
+          <p class="eyebrow">Lean 4 Details</p>
+          <h2 id="lean-title">关键定理怎样对应直觉推理</h2>
+        </div>
+
+        <div class="theorem-list">
+          <article class="theorem">
+            <div>
+              <h3>公开公告和安静夜晚的语义</h3>
+              <p>
+                公告后的模型恰好保留至少有一个红眼者的世界；一次安静夜晚更新保留仍可能且无人会离开的世界。
+              </p>
+            </div>
+            <pre><code>theorem afterGuruAnnouncement_iff :
+    afterGuruAnnouncement w ↔ AtLeastOneRed w
+
+theorem afterOneQuietNight_iff :
+    afterOneQuietNight M w ↔ M w ∧ ∀ i, ¬ WouldLeave M i w</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>为什么看不见自己会阻止知识</h3>
+              <p>
+                如果把自己的眼睛改成绿色后的世界仍可能，那么这个人不能知道自己是红眼者。
+              </p>
+            </div>
+            <pre><code>theorem not_knows_red_if_green_variant_possible
+    (hgreen : M (recolorSelf i EyeColor.green w)) :
+    ¬ Knows M i w (IsRed i)</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>公共知识和状态转移</h3>
+              <p>
+                公共知识以固定点方式展开；显式离开状态转移在空离开报告时退化为 quiet-night 更新。
+              </p>
+            </div>
+            <pre><code>theorem commonKnowledge_unfold :
+    CommonKnowledge M P w ↔
+      P w ∧ EveryoneKnows M w (CommonKnowledge M P)
+
+theorem updateModelBy_empty_report_eq_quiet :
+    updateModelByReport M (fun _ => True) (fun _ => False) =
+      afterOneQuietNight M</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>具体世界接入计数证明</h3>
+              <p>
+                具体有限世界会导出计数相容性；不可区分世界保持看到的红眼人数不变。
+                这把 Kripke 语义层和经典计数证明连接起来。
+              </p>
+            </div>
+            <pre><code>theorem seenRed_eq_of_indistinguishable
+    (hobs : indistinguishable i w v) :
+    seenRed i v = seenRed i w
+
+theorem compatibleWithConcreteObservation
+    (i : Agent) (w : World Agent) :
+    compatibleWithObservation (seenRed i w) (totalRed w)</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>红眼者在决定性夜晚知道自己是红眼者</h3>
+              <p>
+                若实际有 <code>r &gt; 0</code> 个红眼者，则红眼者看到
+                <code>r - 1</code> 个红眼者。经过 <code>r - 1</code> 个安静夜晚后，
+                “自己不是红眼者”的分支已经被排除。
+              </p>
+            </div>
+            <pre><code>theorem redEyedPerson_knows_after_quietNights
+    (r totalRed : Nat) (hr : 0 &lt; r) :
+    possibleAfterQuietNights (r - 1) (r - 1) totalRed →
+      totalRed = r</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>绿眼者仍有两个可能世界</h3>
+              <p>
+                绿眼者看到 <code>r</code> 个红眼者，在决定性夜晚前仍不能区分
+                <code>r</code> 和 <code>r + 1</code>，所以不会和红眼者同晚离开。
+              </p>
+            </div>
+            <pre><code>theorem greenEyedPerson_still_has_two_possibilities
+    (r : Nat) (hr : 0 &lt; r) :
+    possibleAfterQuietNights (r - 1) r r ∧
+      possibleAfterQuietNights (r - 1) r (r + 1)</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>Kripke 更新推出计数下界</h3>
+              <p>
+                连续 <code>n</code> 个安静夜晚后仍可能的具体世界，必然有超过
+                <code>n</code> 个红眼者。这已经不再是计数层的外部假设。
+              </p>
+            </div>
+            <pre><code>theorem afterQuietNights_count_lower_bound :
+    ∀ n {w : World Agent},
+      afterQuietNights n w → n &lt; totalRed w
+
+theorem not_afterQuietNights_of_totalRed_le
+    (hle : totalRed w ≤ n) :
+    ¬ afterQuietNights n w</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>所有红眼者在同一晚离开</h3>
+              <p>
+                决定性夜晚是 <code>totalRed w - 1</code> 个安静夜晚之后。此时每个红眼者都会知道自己是红眼者。
+              </p>
+            </div>
+            <pre><code>theorem allRedAgents_wouldLeave_on_decisiveNight
+    (hw : afterQuietNights (totalRed w - 1) w) :
+    ∀ i, IsRed i w →
+      WouldLeave (afterQuietNights (totalRed w - 1)) i w</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>具体有限世界中的决定性结论</h3>
+              <p>
+                对红眼者而言，经过自己看到的红眼人数那么多个安静夜晚后，任何仍相容的候选总数都必须等于真实总数。
+              </p>
+            </div>
+            <pre><code>theorem redEyedPerson_knows_concrete_total
+    (hred : IsRed i w)
+    (hpossible :
+      possibleAfterQuietNights (seenRed i w) (seenRed i w)
+        candidateTotal) :
+    candidateTotal = totalRed w</code></pre>
+          </article>
+
+          <article class="theorem">
+            <div>
+              <h3>公共信息归纳的可复用形式</h3>
+              <p>
+                <code>quietNights</code> 个安静夜晚排除所有不超过
+                <code>quietNights</code> 的红眼人数。这是整个推理的压缩表达。
+              </p>
+            </div>
+            <pre><code>theorem eliminated_by_quietNights
+    (hle : totalRed ≤ quietNights) :
+    ¬ possibleAfterQuietNights quietNights seen totalRed</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="project" class="section project-section" aria-labelledby="project-title">
+        <div class="section-heading">
+          <p class="eyebrow">Project Notes</p>
+          <h2 id="project-title">文件、依赖和检查方式</h2>
+        </div>
+
+        <div class="project-grid">
+          <article class="project-card">
+            <h3>源码入口</h3>
+            <p><code>BlueEyes.lean</code> 导入 <code>BlueEyes/Puzzle.lean</code>。</p>
+            <p>主要定义和定理都集中在 <code>Puzzle.lean</code>，便于阅读和跳转。</p>
+          </article>
+          <article class="project-card">
+            <h3>依赖</h3>
+            <p>项目固定 Lean 版本为 <code>leanprover/lean4:v4.28.0</code>。</p>
+            <p><code>lakefile.lean</code> 使用 <code>mathlib4 @ v4.28.0</code>，用于有限集合计数和证明自动化。</p>
+          </article>
+          <article class="project-card">
+            <h3>检查命令</h3>
+            <pre><code>lake update
+lake build
+lake env lean BlueEyes/Puzzle.lean</code></pre>
+          </article>
+        </div>
+
+        <div class="index-table" aria-label="Lean 定义和定理索引">
+          <div class="index-row header">
+            <span>名称</span>
+            <span>角色</span>
+            <span>位置</span>
+          </div>
+          <div class="index-row">
+            <code>World</code>
+            <span>可能世界，记录每个参与者的眼睛颜色</span>
+            <span>认识逻辑层</span>
+          </div>
+          <div class="index-row">
+            <code>Knows</code>
+            <span>基于不可区分关系的知识算子</span>
+            <span>认识逻辑层</span>
+          </div>
+          <div class="index-row">
+            <code>afterQuietNights</code>
+            <span>公告后连续安静夜晚的公共模型</span>
+            <span>动态更新层</span>
+          </div>
+          <div class="index-row">
+            <code>seenRed</code>
+            <span>观察者在具体有限世界中看到的红眼人数</span>
+            <span>Mathlib 计数层</span>
+          </div>
+          <div class="index-row">
+            <code>redEyedPerson_knows_concrete_total</code>
+            <span>具体世界版本的决定性结论</span>
+            <span>主证明层</span>
+          </div>
+          <div class="index-row">
+            <code>twoRedOneGreen_reds_leave_together</code>
+            <span>三人两红一绿的完全具体示例</span>
+            <span>示例层</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="example" class="section example-section" aria-labelledby="example-title">
+        <div class="section-heading">
+          <p class="eyebrow">Concrete Example</p>
+          <h2 id="example-title">三人岛民：两红一绿</h2>
+        </div>
+
+        <div class="deep-dive">
+          <article>
+            <h3>具体世界</h3>
+            <p>
+              这里不再使用抽象参与者，而是固定 <code>Fin 3</code>。岛民 <code>0</code> 和
+              <code>1</code> 是红眼者，岛民 <code>2</code> 是绿眼者。
+            </p>
+            <pre><code>def twoRedOneGreen : World (Fin 3) where
+  color
+    | 0 => EyeColor.red
+    | 1 => EyeColor.red
+    | 2 => EyeColor.green</code></pre>
+          </article>
+          <article>
+            <h3>Lean 已证明的故事结论</h3>
+            <p>
+              这个世界中总共有两个红眼者。第一晚无人离开；第二晚，两个红眼者一起离开。
+            </p>
+            <pre><code>theorem twoRedOneGreen_after_one_quiet_night :
+    afterQuietNights 1 twoRedOneGreen
+
+theorem twoRedOneGreen_reds_leave_together :
+    WouldLeave (afterQuietNights 1) 0 twoRedOneGreen ∧
+      WouldLeave (afterQuietNights 1) 1 twoRedOneGreen</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="boundary" class="section boundary-section" aria-labelledby="boundary-title">
+        <div class="section-heading compact">
+          <p class="eyebrow">Scope</p>
+          <h2 id="boundary-title">当前形式化的边界</h2>
+        </div>
+        <div class="boundary-grid">
+          <div>
+            <h3>已经覆盖</h3>
+            <p>世界、观察不可区分关系、知识算子、公共知识固定点、离开状态转移、有限计数，以及 Kripke 到计数的归纳桥接。</p>
+          </div>
+          <div>
+            <h3>可以继续扩展</h3>
+            <p>把“所有红眼者在同一晚离开”的叙事结论包装成高层定理，并为固定人数的岛民构造具体示例。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Lean 4 project: <code>BlueEyes/Puzzle.lean</code></span>
+      <span>Check with <code>lake build</code></span>
+    </footer>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
