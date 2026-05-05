@@ -845,4 +845,197 @@ theorem allRedFive_not_commonKnowledge_everyoneKnows_atLeastOneRed :
   rcases atLeastOneRed_allGreen with ⟨i, hi⟩
   fin_cases i <;> simp [allGreenFive, greenPrefixFive] at hi
 
+/-! ## General `n`-islander version: why the guru's announcement is necessary
+
+The proofs in this section show that **in the initial model (before the guru's
+announcement), `AtLeastOneRed` cannot be common knowledge** for any `n ≥ 2`.
+The core technique is an `n`-step indistinguishability chain:
+
+`allRed n ~ greenPrefix n 1 ~ greenPrefix n 2 ~ ... ~ greenPrefix n (n-1) ~ allGreen n`
+
+where `greenPrefix n k` makes the first `k` islanders (by `Fin` index) green-eyed
+and the rest red-eyed.  Each step `greenPrefix n k → greenPrefix n (k+1)` differs
+only in islander `k`'s own colour, so that islander cannot distinguish the two
+worlds.  If `AtLeastOneRed` were common knowledge, iterated knowledge at level
+`n` would propagate through the chain and force `AtLeastOneRed` to hold in the
+all-green world — a contradiction.  This proves that the guru's announcement is
+_logically necessary_ to make the conclusion reachable.
+
+See the `afterQuietNights` theorems in the concrete finite-world section for the
+_positive_ part of the story: after the announcement and `n` quiet nights, all
+`n` red-eyed islanders deduce their own eye colour and leave together.
+-/
+
+/--
+`greenPrefix n k` makes islanders whose `Fin` index is `< k` green-eyed,
+and the rest red-eyed.  When `k = 0` this is the all-red world; when `k = n`
+it is the all-green world.
+-/
+def greenPrefix (n : Nat) (k : Nat) : World n :=
+  fun i => if (i : Nat) < k then EyeColor.green else EyeColor.red
+
+/-- The world in which all `n` islanders are red-eyed. -/
+def allRed (n : Nat) : World n :=
+  greenPrefix n 0
+
+/-- The world in which all `n` islanders are green-eyed. -/
+def allGreen (n : Nat) : World n :=
+  greenPrefix n n
+
+/--
+For islander `k` (as a `Fin n`), the worlds `greenPrefix n k` and
+`greenPrefix n (k + 1)` differ only in islander `k`'s own colour,
+so they are indistinguishable for islander `k`.
+-/
+theorem indistinguishable_greenPrefix_succ {n : Nat} (k : Fin n) :
+    indistinguishable k (greenPrefix n k) (greenPrefix n (k.succ)) := by
+  intro j hj
+  have h_ne_val : (j : ℕ) ≠ (k : ℕ) := by
+    intro heq; exact hj (Fin.ext heq)
+  dsimp [greenPrefix]
+  by_cases hlt : (j : ℕ) < (k : ℕ)
+  · have hlt' : (j : ℕ) < (k : ℕ) + 1 := by omega
+    simp [hlt, hlt']
+  · have hle : (k : ℕ) ≤ (j : ℕ) := Nat.le_of_not_gt hlt
+    have hgt : (k : ℕ) < (j : ℕ) := Nat.lt_of_le_of_ne hle h_ne_val.symm
+    have hlt' : ¬ ((j : ℕ) < (k : ℕ) + 1) := by omega
+    simp [hlt, hlt']
+
+/-- Variant with explicit k and succ as Nat for use in proofs. -/
+theorem indistinguishable_greenPrefix_succ_explicit {n : Nat} (k : Nat) (hk : k < n) :
+    indistinguishable ⟨k, hk⟩ (greenPrefix n k) (greenPrefix n (k + 1)) := by
+  intro j hj
+  have h_ne_val : (j : ℕ) ≠ k := by
+    intro heq; exact hj (Fin.ext heq)
+  dsimp [greenPrefix]
+  by_cases hlt : (j : ℕ) < k
+  · have hlt' : (j : ℕ) < k + 1 := by omega
+    simp [hlt, hlt']
+  · have hle : k ≤ (j : ℕ) := Nat.le_of_not_gt hlt
+    have hgt : k < (j : ℕ) := Nat.lt_of_le_of_ne hle h_ne_val.symm
+    have hlt' : ¬ ((j : ℕ) < k + 1) := by omega
+    simp [hlt, hlt']
+
+/-- Variant with Fin.succ. -/
+theorem indistinguishable_greenPrefix_succ' {n : Nat} (k : Fin n) :
+    indistinguishable k (greenPrefix n k) (greenPrefix n k.succ) := by
+  exact indistinguishable_greenPrefix_succ_explicit k k.isLt
+
+/--
+One step of the chain propagation.  If `IteratedEveryoneKnows` holds at level
+`m - k` in world `greenPrefix n k`, and islander `k` is a valid index (`k < n`),
+then the same proposition holds at level `m - (k + 1)` in the next world
+`greenPrefix n (k + 1)`.
+
+The proof uses the fact that islander `k` cannot distinguish the two worlds, so
+what they know in `greenPrefix n k` must also be true in `greenPrefix n (k + 1)`.
+-/
+lemma iterated_knowledge_chain_step {n k m : Nat} {P : WProp n} (hk_lt_n : k < n)
+    (hk_lt_m : k < m)
+    (h_iter : IteratedEveryoneKnows initialModel P (m - k) (greenPrefix n k)) :
+    IteratedEveryoneKnows initialModel P (m - (k + 1)) (greenPrefix n (k + 1)) := by
+  have hmk_pos : 0 < m - k := by omega
+  have h_level : m - k = ((m - k - 1) : Nat) + 1 := by omega
+  rw [h_level] at h_iter
+  have hk_knows := h_iter (⟨k, hk_lt_n⟩ : Fin n)
+  have h_indis := indistinguishable_greenPrefix_succ ⟨k, hk_lt_n⟩
+  have h_next := hk_knows (greenPrefix n (k + 1)) trivial h_indis
+  have h_eq : m - k - 1 = m - (k + 1) := by omega
+  rw [h_eq] at h_next
+  exact h_next
+
+/--
+When `n ≥ 2`, in the all-red world every islander knows that at least one
+islander is red-eyed — because each islander can see at least one other
+red-eyed islander.
+-/
+theorem allRed_everyoneKnows_atLeastOneRed {n : Nat} (hn : 2 ≤ n) :
+    EveryoneKnows initialModel (allRed n) AtLeastOneRed := by
+  intro i v _hv hobs
+  have h0 : (0 : Nat) < n := Nat.lt_of_lt_of_le (by norm_num : 0 < 2) hn
+  have h1 : (1 : Nat) < n := Nat.lt_of_lt_of_le (by norm_num : 1 < 2) hn
+  by_cases hi0 : (i : Nat) = 0
+  · have hne1 : ⟨1, h1⟩ ≠ i := by
+      intro heq
+      have hval : (1 : ℕ) = (i : ℕ) := congr_arg Fin.val heq
+      rw [hi0] at hval
+      exact Nat.one_ne_zero hval
+    have hij1 : v ⟨1, h1⟩ = EyeColor.red := by
+      simp [allRed, greenPrefix, hobs ⟨1, h1⟩ hne1]
+    exact ⟨⟨1, h1⟩, by simpa [IsRed] using hij1⟩
+  · have hne0 : ⟨0, h0⟩ ≠ i := by
+      intro heq
+      have hval : (0 : ℕ) = (i : ℕ) := congr_arg Fin.val heq
+      exact hi0 hval.symm
+    have hij0 : v ⟨0, h0⟩ = EyeColor.red := by
+      simp [allRed, greenPrefix, hobs ⟨0, h0⟩ hne0]
+    exact ⟨⟨0, h0⟩, by simpa [IsRed] using hij0⟩
+
+/--
+For any `n ≥ 2`, if all `n` islanders are actually red-eyed, then `AtLeastOneRed`
+is **not** common knowledge in the initial model (before the guru's announcement).
+
+The proof traces the `n`-step chain `allRed n ~ greenPrefix n 1 ~ ... ~ allGreen n`.
+If `AtLeastOneRed` were common knowledge, iterated knowledge at level `n` would
+propagate through the chain and force `AtLeastOneRed` to hold in the all-green
+world — which is impossible.  This shows the guru's announcement is necessary.
+-/
+theorem allRed_not_commonKnowledge_atLeastOneRed {n : Nat} :
+    ¬ CommonKnowledge initialModel AtLeastOneRed (allRed n) := by
+  intro hck
+  have h_allGreen : AtLeastOneRed (allGreen n) := by
+    have h_propagate : ∀ k, k ≤ n →
+        IteratedEveryoneKnows initialModel AtLeastOneRed (n - k) (greenPrefix n k) := by
+      intro k hk
+      induction' k with k ih
+      · simpa [allRed] using hck n
+      · have hk_lt_n : k < n := by omega
+        have h_prev := ih (by omega)
+        have h_step := iterated_knowledge_chain_step (m := n) hk_lt_n (by omega) h_prev
+        simpa using h_step
+    have h_n := h_propagate n (le_refl n)
+    simpa [allGreen, Nat.sub_self] using h_n
+  rcases h_allGreen with ⟨i, hi⟩
+  have hi_lt_n : (i : ℕ) < n := i.is_lt
+  simp [allGreen, greenPrefix, hi_lt_n] at hi
+
+/--
+A stronger formulation: when `n ≥ 2`, even though `EveryoneKnows initialModel
+(allRed n) AtLeastOneRed` is true, the proposition "everybody knows there is a
+red-eyed person" is itself **not** common knowledge.
+
+The proof follows the same `n`-step indistinguishability chain, starting from
+level `n-1` of the iterated-knowledge predicate
+`P := fun w => EveryoneKnows initialModel w AtLeastOneRed`.
+-/
+theorem allRed_not_commonKnowledge_everyoneKnows_atLeastOneRed {n : Nat} (hnpos : 0 < n) :
+    ¬ CommonKnowledge initialModel (fun w => EveryoneKnows initialModel w AtLeastOneRed)
+      (allRed n) := by
+  intro hck
+  set P : WProp n := fun w => EveryoneKnows initialModel w AtLeastOneRed with hP
+  have h_allGreen : AtLeastOneRed (allGreen n) := by
+    have h_propagate : ∀ k, k ≤ n - 1 →
+        IteratedEveryoneKnows initialModel P ((n - 1) - k) (greenPrefix n k) := by
+      intro k hk
+      induction' k with k ih
+      · simpa [allRed, hP] using hck (n - 1)
+      · have hk_lt_n : k < n := by omega
+        have hk_lt_m : k < n - 1 := by omega
+        have h_prev := ih (by omega)
+        have h_step := iterated_knowledge_chain_step (m := n - 1) hk_lt_n hk_lt_m h_prev
+        simpa using h_step
+    have h_last : IteratedEveryoneKnows initialModel P 0 (greenPrefix n (n - 1)) := by
+      have := h_propagate (n - 1) (le_refl (n - 1))
+      simpa [Nat.sub_self] using this
+    have hn1_lt_n : n - 1 < n := Nat.sub_lt hnpos (by omega)
+    have h_sub_add : (n - 1) + 1 = n := Nat.sub_add_cancel (Nat.one_le_of_lt hnpos)
+    have hindis := indistinguishable_greenPrefix_succ_explicit (n - 1) hn1_lt_n
+    rw [h_sub_add] at hindis
+    have hk := h_last (⟨n - 1, hn1_lt_n⟩ : Fin n)
+        (greenPrefix n n) trivial hindis
+    simpa [hP, allGreen] using hk
+  rcases h_allGreen with ⟨i, hi⟩
+  have hi_lt_n : (i : ℕ) < n := i.is_lt
+  simp [allGreen, greenPrefix, hi_lt_n] at hi
+
 end BlueEyes
